@@ -1,0 +1,8 @@
+{
+  "FunctionName": "tfrefresh",
+  "Handler": "tfrefresh",
+  "MemorySize": 128,
+  "Role": "{{ tfstate `aws_iam_role.tfrefresh.arn` }}",
+  "Runtime": "go1.x",
+  "Timeout": 600
+}
