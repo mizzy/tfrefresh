@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/aws/aws-lambda-go/lambda"
 	"os/exec"
-	"strings"
 )
 
 type Event struct {
@@ -31,17 +31,45 @@ func tfrefresh(e Event) error {
 	res, _ := json.Marshal(e.Detail.ResponseElements)
 	fmt.Println(string(res))
 
-	err := run("git clone --depth=1 https://github.com/mizzy/tfrefresh.git")
+	err := run("rm -rf /tmp/tfrefresh", "/tmp")
+	if err != nil {
+		return err
+	}
+	err = run("git clone --depth=1 https://github.com/mizzy/tfrefresh.git", "/tmp")
+	if err != nil {
+		return err
+	}
+	err = run("terraform init", "/tmp/tfrefresh/terraform")
 	if err != nil {
 		return err
 	}
 
+	err = run("terraform refresh -lock-timeout 10m", "/tmp/tfrefresh/terraform")
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func run(cmd string) error {
-	args := strings.Split(cmd, " ")
-	err := exec.Command(args[0], args[1:]...).Run()
-	return err
+func run(c, dir string) error {
+	cmd := exec.Command("/bin/sh", "-c", c)
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	cmd.Dir = dir
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	fmt.Println(cmd)
+	fmt.Printf("stdout: %s\n", stdout.String())
+
+	if err != nil {
+		fmt.Printf("stder: %s\n", stderr.String())
+		return err
+	}
+
+	return nil
 }
