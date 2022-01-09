@@ -21,5 +21,5 @@ resource "aws_iam_role_policy_attachment" "tfrefresh_lambda_basic_execution_role
 
 resource "aws_cloudwatch_log_group" "tfrefresh" {
   name              = "/aws/lambda/tfrefresh"
-  retention_in_days = 14
+  retention_in_days = 7
 }

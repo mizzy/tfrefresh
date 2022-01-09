@@ -1,8 +1,10 @@
 {
   "FunctionName": "tfrefresh",
-  "Handler": "tfrefresh",
   "MemorySize": 128,
   "Role": "{{ tfstate `aws_iam_role.tfrefresh.arn` }}",
-  "Runtime": "go1.x",
-  "Timeout": 600
+  "Timeout": 600,
+  "PackageType": "Image",
+  "Code": {
+    "ImageUri": "{{ tfstate `aws_ecr_repository.tfrefresh.repository_url` }}:v0.0.3"
+  }
 }
