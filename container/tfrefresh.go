@@ -2,10 +2,14 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-lambda-go/lambda"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"strings"
+
+	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/fujiwara/tfstate-lookup/tfstate"
 )
 
 type Event struct {
@@ -23,30 +27,31 @@ func main() {
 }
 
 func tfrefresh(e Event) error {
-	fmt.Printf("%#v\n", e)
+	if e.Detail.EventName == "CreateLogStream" {
+		return nil
+	}
 
-	req, _ := json.Marshal(e.Detail.RequestParameters)
-	fmt.Println(string(req))
+	fmt.Println(e.Detail.EventName)
 
-	res, _ := json.Marshal(e.Detail.ResponseElements)
-	fmt.Println(string(res))
+	tmp, err := ioutil.TempDir("/tmp", "")
+	defer os.RemoveAll(tmp)
 
-	err := run("rm -rf /tmp/tfrefresh", "/tmp")
+	err = run(fmt.Sprintf("curl -sLO %s", os.Getenv("TF_BACKEND_URL")), tmp)
 	if err != nil {
 		return err
 	}
-	err = run("git clone --depth=1 https://github.com/mizzy/tfrefresh.git", "/tmp")
-	if err != nil {
-		return err
-	}
-	err = run("terraform init", "/tmp/tfrefresh/terraform")
+	err = run("terraform init", tmp)
 	if err != nil {
 		return err
 	}
 
-	err = run("terraform refresh -lock-timeout 10m", "/tmp/tfrefresh/terraform")
+	state, err := tfstateRead(fmt.Sprintf("%s/.terraform/terraform.tfstate", tmp))
 	if err != nil {
 		return err
+	}
+
+	if e.Detail.EventName == "PutRetentionPolicy" {
+		refreshLogGroup(e.Detail.RequestParameters["logGroupName"].(string), state, tmp)
 	}
 
 	return nil
@@ -69,6 +74,32 @@ func run(c, dir string) error {
 	if err != nil {
 		fmt.Printf("stder: %s\n", stderr.String())
 		return err
+	}
+
+	return nil
+}
+
+func tfstateRead(stateLoc string) (*tfstate.TFState, error) {
+	state, err := tfstate.ReadURL(stateLoc)
+	return state, err
+}
+
+func refreshLogGroup(logGroup string, state *tfstate.TFState, dir string) error {
+	list, err := state.List()
+	if err != nil {
+		return nil
+	}
+
+	for _, resource := range list {
+		if strings.HasPrefix(resource, "aws_cloudwatch_log_group") {
+			id, err := state.Lookup(fmt.Sprintf("%s.id", resource))
+			if err != nil {
+				return err
+			}
+			if id.String() == logGroup {
+				run(fmt.Sprintf("terraform refresh -target %s", resource), dir)
+			}
+		}
 	}
 
 	return nil

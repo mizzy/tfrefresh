@@ -1,5 +1,10 @@
 {
   "FunctionName": "tfrefresh",
+  "Environment": {
+    "Variables": {
+      "TF_BACKEND_URL": "https://raw.githubusercontent.com/mizzy/tfrefresh/main/terraform/backend.tf"
+    }
+  },
   "MemorySize": 128,
   "Role": "{{ tfstate `aws_iam_role.tfrefresh.arn` }}",
   "Timeout": 600,

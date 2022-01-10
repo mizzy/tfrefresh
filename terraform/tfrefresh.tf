@@ -32,7 +32,6 @@ data "aws_iam_policy_document" "tfrefresh_assume_terraform_role" {
   }
 }
 
-
 resource "aws_iam_policy" "tfrefresh_assume_terraform_role" {
   policy = data.aws_iam_policy_document.tfrefresh_assume_terraform_role.json
 }
@@ -44,5 +43,5 @@ resource "aws_iam_role_policy_attachment" "tfrefresh_assume_terraform_role" {
 
 resource "aws_cloudwatch_log_group" "tfrefresh" {
   name              = "/aws/lambda/tfrefresh"
-  retention_in_days = 7
+  retention_in_days = 14
 }
